@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button";
 import { SignInButton, SignedIn, SignedOut, UserButton } from "@clerk/nextjs";
 import Link from "next/link";
 import { ArrowRight, CalendarDays, Trophy, ShieldCheck } from "lucide-react";
-import { ModeToggle } from "@/components/mode-toggle";
 
 export default function LandingPage() {
   return (

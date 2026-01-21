@@ -24,6 +24,8 @@ import {
 } from "@/components/ui/dialog";
 import { Loader2, Trash2, CalendarDays, Plus, Ticket, MessageCircle } from "lucide-react";
 
+const telefono = process.env.TELEFONO;
+
 export default function Dashboard() {
   const { user } = useUser();
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -40,6 +42,7 @@ export default function Dashboard() {
   const cancelBooking = useMutation(api.bookings.cancel);
 
   const hours = [18, 19, 20, 21, 22, 23];
+  
 
   const isPastTime = (hour: number) => {
     if (!date) return false;
@@ -207,7 +210,7 @@ export default function Dashboard() {
                 </div>
                 <Button 
                   onClick={() => {
-                    const telefono = "5493472430136";
+                    
                     const msg = encodeURIComponent(`⚽ *Reserva:* ${booking.courtType}\n📅 *Día:* ${booking.date}\n⏰ *Hora:* ${booking.hour}:00hs`);
                     window.open(`https://wa.me/${telefono}?text=${msg}`, '_blank');
                   }}
