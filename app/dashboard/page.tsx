@@ -24,7 +24,8 @@ import {
 } from "@/components/ui/dialog";
 import { Loader2, Trash2, CalendarDays, Plus, Ticket, MessageCircle } from "lucide-react";
 
-const telefono = process.env.TELEFONO;
+// IMPORTANTE: En Vercel la variable debe llamarse NEXT_PUBLIC_TELEFONO
+const TELEFONO_DUEÑO = process.env.NEXT_PUBLIC_TELEFONO || "5493472430136";
 
 export default function Dashboard() {
   const { user } = useUser();
@@ -42,7 +43,6 @@ export default function Dashboard() {
   const cancelBooking = useMutation(api.bookings.cancel);
 
   const hours = [18, 19, 20, 21, 22, 23];
-  
 
   const isPastTime = (hour: number) => {
     if (!date) return false;
@@ -87,12 +87,12 @@ export default function Dashboard() {
           MIS RESERVAS
         </h1>
         <div className="flex items-center gap-3">
-          
+          <ModeToggle />
           <UserButton afterSignOutUrl="/" />
         </div>
       </div>
 
-      {/* Botón Nueva Reserva - Siempre visible y cómodo en mobile */}
+      {/* Botón Nueva Reserva */}
       <div className="flex justify-start">
         <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
           <DialogTrigger asChild>
@@ -103,8 +103,8 @@ export default function Dashboard() {
           
           <DialogContent className="w-[95vw] md:max-w-3xl rounded-t-3xl md:rounded-lg max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle className="text-xl font-black uppercase tracking-tight">Reservar Cancha</DialogTitle>
-              <DialogDescription>Selecciona fecha y cancha para jugar.</DialogDescription>
+              <DialogTitle className="text-xl font-black uppercase tracking-tight text-center md:text-left">Reservar Cancha</DialogTitle>
+              <DialogDescription className="text-center md:text-left">Selecciona fecha y cancha para jugar.</DialogDescription>
             </DialogHeader>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
@@ -170,7 +170,6 @@ export default function Dashboard() {
       {!myBookings ? (
         <div className="py-20 flex justify-center"><Loader2 className="animate-spin w-10 h-10 text-green-600 opacity-30" /></div>
       ) : myBookings.length === 0 ? (
-        /* CAJA RESTAURADA: Empty State */
         <Card className="border-dashed border-2 bg-muted/10 py-16 md:py-24">
           <CardContent className="flex flex-col items-center justify-center text-center space-y-6">
             <div className="bg-background p-6 rounded-full shadow-inner border">
@@ -183,10 +182,9 @@ export default function Dashboard() {
           </CardContent>
         </Card>
       ) : (
-        /* Lista de Tarjetas para Mobile */
         <div className="grid gap-4 md:grid-cols-2">
           {myBookings.map((booking) => (
-            <Card key={booking._id} className="bg-card border-none shadow-xl border-l-8 border-l-green-600 group hover:scale-[1.01] transition-transform">
+            <Card key={booking._id} className="bg-card border-none shadow-xl border-l-8 border-l-green-600 group">
               <CardContent className="pt-6 flex flex-col gap-4">
                 <div className="flex justify-between items-start">
                   <div className="space-y-1">
@@ -210,9 +208,18 @@ export default function Dashboard() {
                 </div>
                 <Button 
                   onClick={() => {
+                    const fechaFormateada = format(new Date(booking.date + "T00:00:00"), "dd/MM");
+                    const msg = encodeURIComponent(
+                      `⚽ *¡RESERVA CONFIRMADA!*\n` +
+                      `🏟️ *Cancha:* ${booking.courtType}\n` +
+                      `📅 *Día:* ${fechaFormateada}\n` +
+                      `⏰ *Hora:* ${booking.hour}:00hs\n` +
+                      `👤 *Jugador:* ${user?.fullName || "Cliente"}`
+                    );
                     
-                    const msg = encodeURIComponent(`⚽ *Reserva:* ${booking.courtType}\n📅 *Día:* ${booking.date}\n⏰ *Hora:* ${booking.hour}:00hs`);
-                    window.open(`https://wa.me/${telefono}?text=${msg}`, '_blank');
+                    // Redirección directa más segura para navegadores móviles
+                    const url = `https://api.whatsapp.com/send?phone=${TELEFONO_DUEÑO}&text=${msg}`;
+                    window.location.href = url;
                   }}
                   className="w-full bg-green-600 hover:bg-green-700 text-white font-black uppercase text-xs h-12 gap-2 shadow-lg shadow-green-600/20"
                 >
