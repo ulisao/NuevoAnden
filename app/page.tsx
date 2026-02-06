@@ -4,18 +4,25 @@ import { Button } from "@/components/ui/button";
 import { SignInButton, SignedIn, SignedOut, UserButton } from "@clerk/nextjs";
 import Link from "next/link";
 import { ArrowRight, CalendarDays, Trophy, ShieldCheck } from "lucide-react";
+// 1. Importamos el componente para cambiar de tema (asegurate de tenerlo en components)
+import { ModeToggle } from "@/components/mode-toggle"; 
 
 export default function LandingPage() {
   return (
-    <div className="flex flex-col min-h-screen bg-background">
+    <div className="flex flex-col min-h-screen bg-background transition-colors duration-300">
       {/* Navbar Minimalista */}
-      <header className="px-4 md:px-6 h-16 flex items-center justify-between bg-background border-b sticky top-0 z-50">
-        <div className="flex items-center gap-2 font-bold text-lg md:text-xl text-foreground">
-          <Trophy className="w-5 h-5 text-green-600" />
-          <span>F5 Master</span>
+      <header className="px-4 md:px-6 h-16 flex items-center justify-between bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60 border-b sticky top-0 z-50">
+        <div className="text-2xl font-bold text-emerald-400 tracking-tighter flex items-center gap-2">
+          <div className="w-8 h-8 bg-emerald-500 rounded-lg rotate-45 flex items-center justify-center">
+            <div className="w-4 h-4 bg-slate-900 rounded-full -rotate-45"></div>
+          </div>
+          CanchaClick
         </div>
         
         <div className="flex items-center gap-2 md:gap-4">
+          {/* 2. Agregamos el botón de Modo Oscuro aquí */}
+          <ModeToggle />
+          
           <SignedOut>
             <SignInButton mode="modal">
               <Button variant="outline" size="sm" className="hidden md:flex">
@@ -39,7 +46,7 @@ export default function LandingPage() {
         </div>
       </header>
 
-      {/* Hero Section - Estilo Clásico */}
+      {/* Hero Section */}
       <main className="flex-1 flex flex-col items-center justify-center text-center p-4 md:p-6 space-y-8 md:space-y-12">
         <div className="max-w-4xl space-y-4 md:space-y-6">
           <h1 className="text-4xl md:text-6xl lg:text-7xl font-extrabold tracking-tight text-slate-900 dark:text-white leading-[1.1]">
@@ -58,7 +65,7 @@ export default function LandingPage() {
           </div>
         </div>
 
-        {/* Feature Cards - Optimizadas para Scroll Mobile */}
+        {/* Feature Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-8 w-full max-w-5xl px-4">
           <FeatureCard 
             icon={<CalendarDays className="w-8 h-8 text-blue-500" />}
@@ -78,7 +85,7 @@ export default function LandingPage() {
         </div>
       </main>
 
-      <footer className="py-6 text-center text-slate-500 text-sm border-t">
+      <footer className="py-6 text-center text-slate-500 text-sm border-t dark:border-slate-800">
         © 2026 F5 Master. Todos los derechos reservados.
       </footer>
     </div>
@@ -87,9 +94,9 @@ export default function LandingPage() {
 
 function FeatureCard({ icon, title, desc }: { icon: React.ReactNode, title: string, desc: string }) {
   return (
-    <div className="p-6 bg-card rounded-xl shadow-sm border text-center md:text-left hover:shadow-md transition-shadow">
+    <div className="p-6 bg-card dark:bg-slate-900 rounded-xl shadow-sm border dark:border-slate-800 text-center md:text-left hover:shadow-md transition-shadow">
       <div className="mb-4 flex justify-center md:justify-start">{icon}</div>
-      <h3 className="font-bold text-lg mb-2 text-foreground">{title}</h3>
+      <h3 className="font-bold text-lg mb-2 text-foreground dark:text-slate-100">{title}</h3>
       <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">{desc}</p>
     </div>
   );

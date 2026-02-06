@@ -1,16 +1,16 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google"; // Usamos Inter de Google
+import { Inter } from "next/font/google";
 import "./globals.css";
 import { ClerkProvider } from "@clerk/nextjs";
 import { ConvexClientProvider } from "@/components/convex-provider";
 import { Toaster } from "@/components/ui/sonner";
+import { ThemeProvider } from "@/components/theme-provider";
 
-// Configuramos la fuente
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Turnero Futbol",
-  description: "Reserva tu cancha al instante",
+  title: "F5 Master",
+  description: "Reserva tu cancha de fútbol al instante",
 };
 
 export default function RootLayout({
@@ -19,15 +19,24 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <ClerkProvider>
-      <html lang="es">
-        <body className={inter.className}>
+    // suppressHydrationWarning es CLAVE para que no tire error el modo oscuro
+    <html lang="es" suppressHydrationWarning>
+      <body className={inter.className}>
+        {/* IMPORTANTE: Todos los Providers van DENTRO del body */}
+        <ClerkProvider>
           <ConvexClientProvider>
-            {children}
-            <Toaster />
+            <ThemeProvider
+              attribute="class"
+              defaultTheme="system"
+              enableSystem
+              disableTransitionOnChange
+            >
+              {children}
+              <Toaster />
+            </ThemeProvider>
           </ConvexClientProvider>
-        </body>
-      </html>
-    </ClerkProvider>
+        </ClerkProvider>
+      </body>
+    </html>
   );
 }
