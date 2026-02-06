@@ -9,7 +9,7 @@ import { ThemeProvider } from "@/components/theme-provider";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "F5 Master",
+  title: "CanchaClick",
   description: "Reserva tu cancha de fútbol al instante",
 };
 
