@@ -3,14 +3,16 @@ import { v } from "convex/values";
 
 export default defineSchema({
   bookings: defineTable({
-    userId: v.string(),        // ID de Clerk
+    userId: v.string(),
     userName: v.optional(v.string()),
     userEmail: v.optional(v.string()),
-    courtType: v.string(),     // "5v5" o "7v7"
-    date: v.string(),          // "YYYY-MM-DD"
-    hour: v.number(),          // 18, 19, 20...
-    status: v.string(),        // "confirmed", "cancelled"
+    courtType: v.string(),
+    date: v.string(),
+    hour: v.number(),
+    status: v.string(), // "pending_payment", "confirmed", "cancelled"
   })
-  .index("by_date_court", ["date", "courtType"]) // Para ver disponibilidad
-  .index("by_user", ["userId"]),                 // Para ver mis reservas
+  .index("by_date_court", ["date", "courtType"])
+  .index("by_user", ["userId"])
+  // Índice útil para buscar reservas por estado (ej: para limpiar las pendientes viejas)
+  .index("by_status", ["status"]),
 });

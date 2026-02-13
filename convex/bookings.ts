@@ -1,18 +1,15 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 
-// Email del dueño (CAMBIALO POR EL TUYO REAL)
 const ADMIN_EMAIL = "ulisessbaretta@gmail.com"; 
 
 function isPast(dateStr: string, hour: number) {
   const now = new Date();
-  // Creamos fecha del turno (asumiendo hora local o UTC manejo simple)
-  // Ojo: Para simplicidad comparamos strings y horas locales del servidor
   const todayStr = now.toISOString().split("T")[0];
   const currentHour = now.getHours();
 
-  if (dateStr < todayStr) return true; // Fecha pasada
-  if (dateStr === todayStr && hour <= currentHour) return true; // Hora pasada hoy
+  if (dateStr < todayStr) return true;
+  if (dateStr === todayStr && hour <= currentHour) return true;
   return false;
 }
 
@@ -38,37 +35,54 @@ export const create = mutation({
       throw new Error("Límite alcanzado: No puedes tener más de 2 reservas activas al mismo tiempo.");
     }
 
-    // 1. VALIDACIÓN NUEVA: Chequear pasado
+    // 1. VALIDACIÓN: Chequear pasado
     if (isPast(args.date, args.hour)) {
       throw new Error("No puedes reservar en el pasado");
     }
 
-    // 2. Verificar duplicados (código anterior...)
+    // 2. Verificar duplicados (Solo nos importan las CONFIRMADAS)
     const existing = await ctx.db
       .query("bookings")
       .withIndex("by_date_court", (q) => 
         q.eq("date", args.date).eq("courtType", args.courtType)
       )
       .filter((q) => q.eq(q.field("hour"), args.hour))
+      .filter((q) => q.eq(q.field("status"), "confirmed")) // <--- CAMBIO IMPORTANTE
       .first();
 
-    if (existing && existing.status === "confirmed") {
+    if (existing) {
       throw new Error("Horario ya reservado");
     }
 
-    await ctx.db.insert("bookings", {
+    // 3. Crear reserva en estado PENDIENTE DE PAGO
+    const bookingId = await ctx.db.insert("bookings", {
       userId: identity.subject,
       userName: args.userName,
       userEmail: args.userEmail,
       courtType: args.courtType,
       date: args.date,
       hour: args.hour,
-      status: "confirmed",
+      status: "pending_payment", // <--- Nace pendiente
     });
+
+    return bookingId; // Retornamos el ID para usarlo en MercadoPago
   },
 });
 
-// 1. Obtener reservas de un día específico (Para el calendario)
+// Nueva mutación para confirmar el pago
+export const confirmBooking = mutation({
+  args: { bookingId: v.id("bookings") },
+  handler: async (ctx, args) => {
+    const booking = await ctx.db.get(args.bookingId);
+    if (!booking) throw new Error("Reserva no encontrada");
+    
+    // Solo confirmamos si estaba pendiente
+    if (booking.status === "pending_payment") {
+      await ctx.db.patch(args.bookingId, { status: "confirmed" });
+    }
+  },
+});
+
 export const getByDate = query({
   args: { date: v.string(), courtType: v.string() },
   handler: async (ctx, args) => {
@@ -77,17 +91,17 @@ export const getByDate = query({
       .withIndex("by_date_court", (q) => 
         q.eq("date", args.date).eq("courtType", args.courtType)
       )
-      .filter((q) => q.eq(q.field("status"), "confirmed"))
+      // Solo mostramos las confirmadas como "Ocupadas" en el calendario
+      .filter((q) => q.eq(q.field("status"), "confirmed")) 
       .collect();
   },
 });
 
-// 3. Obtener TODAS las reservas (Solo Admin)
 export const getAdminBookings = query({
   args: {},
   handler: async (ctx) => {
     const identity = await ctx.auth.getUserIdentity();
-    if (!identity || identity.email !== ADMIN_EMAIL) return []; // Retorna vacío si no es admin
+    if (!identity || identity.email !== ADMIN_EMAIL) return [];
     
     return await ctx.db.query("bookings").order("desc").take(100);
   },
@@ -102,15 +116,14 @@ export const getMyBookings = query({
     const bookings = await ctx.db
       .query("bookings")
       .withIndex("by_user", (q) => q.eq("userId", identity.subject))
-      .filter((q) => q.eq(q.field("status"), "confirmed"))
+      // Opcional: Si queres que el usuario vea sus intentos fallidos, quitá este filtro
+      .filter((q) => q.eq(q.field("status"), "confirmed")) 
       .collect();
       
-    // Opcional: Ordenarlas por fecha (las más recientes primero)
     return bookings.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
   },
 });
 
-// 4. Cancelar reserva
 export const cancel = mutation({
   args: { bookingId: v.id("bookings") },
   handler: async (ctx, args) => {
@@ -120,8 +133,6 @@ export const cancel = mutation({
     const booking = await ctx.db.get(args.bookingId);
     if (!booking) throw new Error("Reserva no encontrada");
 
-    // LÓGICA ACTUALIZADA: 
-    // Puede cancelar si: es el dueño de la reserva O es el Administrador
     const isOwner = booking.userId === identity.subject;
     const isAdmin = identity.email === ADMIN_EMAIL;
 
@@ -129,7 +140,6 @@ export const cancel = mutation({
       throw new Error("No tienes permisos para cancelar esta reserva");
     }
 
-    // En lugar de borrar, marcamos como cancelado para mantener historial
     await ctx.db.patch(args.bookingId, { status: "cancelled" });
   },
 });
@@ -142,8 +152,7 @@ export const adminBlock = mutation({
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
-    // Reemplaza con tu email real
-    if (!identity || identity.email !== "ulisessbaretta@gmail.com") {
+    if (!identity || identity.email !== ADMIN_EMAIL) {
       throw new Error("Solo el dueño puede bloquear canchas");
     }
 
