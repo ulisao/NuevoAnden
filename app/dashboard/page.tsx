@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useUser, UserButton } from "@clerk/nextjs";
 import { useQuery, useMutation, useAction } from "convex/react";
 import { api } from "@/convex/_generated/api";
@@ -28,10 +28,11 @@ import { Loader2, Trash2, CalendarDays, Plus, Ticket, MessageCircle, CreditCard 
 const TELEFONO_DUEÑO = process.env.NEXT_PUBLIC_TELEFONO || "5493472430136";
 const PRECIO_SEÑA = 2000; 
 
-export default function Dashboard() {
+// 1. Movemos toda la lógica a este componente interno
+function DashboardContent() {
   const { user } = useUser();
   const router = useRouter();
-  const searchParams = useSearchParams();
+  const searchParams = useSearchParams(); // Esto es lo que causaba el error sin Suspense
   const [isModalOpen, setIsModalOpen] = useState(false);
   
   const [date, setDate] = useState<Date | undefined>(new Date());
@@ -50,7 +51,7 @@ export default function Dashboard() {
   // Acción de MercadoPago (Backend)
   const createPreference = useAction(api.mercadopago.createPreference);
 
-  // --- 1. MANEJO DEL RETORNO DE MERCADOPAGO ---
+  // --- MANEJO DEL RETORNO DE MERCADOPAGO ---
   useEffect(() => {
     const status = searchParams.get("status");
     const bookingId = searchParams.get("bookingId");
@@ -61,7 +62,6 @@ export default function Dashboard() {
         success: "¡Pago exitoso! Reserva confirmada.",
         error: "Hubo un error al confirmar la reserva."
       });
-      // Limpiamos la URL para evitar re-confirmaciones
       router.replace("/dashboard");
     } else if (status === "failure") {
       toast.error("El pago no se completó. Intenta nuevamente.");
@@ -78,15 +78,12 @@ export default function Dashboard() {
     return date < new Date(now.setHours(0,0,0,0));
   };
 
-  // --- 2. NUEVO FLUJO DE RESERVA CON PAGO ---
   const handleBooking = async (hour: number) => {
     if (!date || !user) return;
 
     try {
-      // A. Feedback visual
       toast.loading("Generando link de pago...", { id: "payment-toast" });
 
-      // B. Crear reserva temporal (pending_payment)
       const bookingId = await createBooking({
         courtType,
         date: dateStr,
@@ -95,10 +92,8 @@ export default function Dashboard() {
         userEmail: user.primaryEmailAddress?.emailAddress || "",
       });
 
-      // C. Obtener URL actual del navegador (En producción será https://turnero...)
       const currentUrl = window.location.origin; 
 
-      // D. Generar Link de Pago en el backend
       const paymentUrl = await createPreference({
         bookingId,
         title: `Seña Cancha ${courtType} - ${format(date, "dd/MM")} ${hour}:00hs`,
@@ -106,7 +101,6 @@ export default function Dashboard() {
         platformUrl: currentUrl, 
       });
 
-      // E. Redirigir a MercadoPago
       if (paymentUrl) {
          window.location.assign(paymentUrl);
       } else {
@@ -115,7 +109,6 @@ export default function Dashboard() {
 
     } catch (error: any) {
       toast.dismiss("payment-toast");
-      // Manejo de errores amigable
       const msg = error.message.includes("Límite") 
         ? "Ya tienes 2 reservas activas." 
         : error.message.includes("reservado") 
@@ -135,7 +128,6 @@ export default function Dashboard() {
 
   return (
     <div className="container mx-auto p-4 md:p-6 max-w-4xl space-y-6 bg-background min-h-screen text-foreground transition-colors duration-300">
-      {/* Header Responsivo */}
       <div className="flex items-center justify-between">
         <h1 className="text-2xl md:text-3xl font-black italic tracking-tighter uppercase">
           MIS RESERVAS
@@ -146,7 +138,6 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Botón Nueva Reserva */}
       <div className="flex justify-start">
         <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
           <DialogTrigger asChild>
@@ -235,7 +226,6 @@ export default function Dashboard() {
         </Dialog>
       </div>
 
-      {/* Listado de Reservas */}
       {!myBookings ? (
         <div className="py-20 flex justify-center"><Loader2 className="animate-spin w-10 h-10 text-green-600 opacity-30" /></div>
       ) : myBookings.length === 0 ? (
@@ -298,5 +288,15 @@ export default function Dashboard() {
         </div>
       )}
     </div>
+  );
+}
+
+// 2. Exportamos el componente principal envuelto en Suspense
+// Esto es lo que soluciona el error de build de Vercel
+export default function Dashboard() {
+  return (
+    <Suspense fallback={<div className="flex justify-center items-center h-screen"><Loader2 className="animate-spin w-10 h-10 text-green-600" /></div>}>
+      <DashboardContent />
+    </Suspense>
   );
 }
