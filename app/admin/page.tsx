@@ -20,7 +20,7 @@ import { Loader2, Trash2, ArrowLeft, Lock, Filter, Download } from "lucide-react
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 
-const ADMIN_EMAIL = "ulisessbaretta@gmail.com"; 
+const ADMIN_EMAIL = process.env.NEXT_PUBLIC_ADMIN_EMAIL;
 
 export default function AdminDashboard() {
   const { user, isLoaded } = useUser();

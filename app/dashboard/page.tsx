@@ -22,19 +22,25 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  DialogFooter,
 } from "@/components/ui/dialog";
-import { Loader2, Trash2, CalendarDays, Plus, Ticket, MessageCircle, CreditCard } from "lucide-react";
+import { Loader2, Trash2, CalendarDays, Plus, Ticket, MessageCircle, CreditCard, ArrowRight } from "lucide-react";
 
 const TELEFONO_DUEÑO = process.env.NEXT_PUBLIC_TELEFONO || "5493472430136";
 const PRECIO_SEÑA = 2000; 
 
-// 1. Movemos toda la lógica a este componente interno
 function DashboardContent() {
   const { user } = useUser();
   const router = useRouter();
-  const searchParams = useSearchParams(); // Esto es lo que causaba el error sin Suspense
+  const searchParams = useSearchParams();
+  
+  // Estados para manejo de UI
   const [isModalOpen, setIsModalOpen] = useState(false);
   
+  // NUEVO: Estados para manejar el fallback de pago móvil
+  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+  const [paymentUrl, setPaymentUrl] = useState<string | null>(null);
+
   const [date, setDate] = useState<Date | undefined>(new Date());
   const [courtType, setCourtType] = useState<"5v5" | "7v7">("5v5");
 
@@ -82,8 +88,9 @@ function DashboardContent() {
     if (!date || !user) return;
 
     try {
-      toast.loading("Generando link de pago...", { id: "payment-toast" });
+      toast.loading("Procesando...", { id: "payment-toast" });
 
+      // 1. Crear reserva temporal
       const bookingId = await createBooking({
         courtType,
         date: dateStr,
@@ -92,20 +99,29 @@ function DashboardContent() {
         userEmail: user.primaryEmailAddress?.emailAddress || "",
       });
 
+      // 2. Generar Link
       const currentUrl = window.location.origin; 
-
-      const paymentUrl = await createPreference({
+      const generatedUrl = await createPreference({
         bookingId,
         title: `Seña Cancha ${courtType} - ${format(date, "dd/MM")} ${hour}:00hs`,
         price: PRECIO_SEÑA,
         platformUrl: currentUrl, 
       });
 
-      if (paymentUrl) {
-         window.location.assign(paymentUrl);
-      } else {
-         throw new Error("No se recibió el link de pago.");
-      }
+      if (!generatedUrl) throw new Error("No se recibió el link de pago.");
+
+      // 3. ESTRATEGIA MÓVIL "ANTI-BLOQUEO"
+      // A. Guardamos la URL y abrimos el modal de confirmación por si el redireccionamiento falla
+      setPaymentUrl(generatedUrl);
+      setIsModalOpen(false); // Cerramos el de horarios
+      setIsPaymentModalOpen(true); // Abrimos el de pago manual
+
+      // B. Intentamos redirigir automáticamente igual (para PC)
+      toast.dismiss("payment-toast");
+      toast.success("¡Reserva iniciada!");
+      
+      // eslint-disable-next-line
+      window.location.href = generatedUrl;
 
     } catch (error: any) {
       toast.dismiss("payment-toast");
@@ -139,6 +155,7 @@ function DashboardContent() {
       </div>
 
       <div className="flex justify-start">
+        {/* DIALOG DE SELECCIÓN DE HORARIOS */}
         <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
           <DialogTrigger asChild>
             <Button size="lg" className="w-full md:w-auto bg-green-600 hover:bg-green-700 text-white font-black px-8 h-14 md:h-12 shadow-xl shadow-green-600/20 transition-transform active:scale-95">
@@ -224,6 +241,37 @@ function DashboardContent() {
             </div>
           </DialogContent>
         </Dialog>
+
+        {/* --- NUEVO DIALOG: CONFIRMACIÓN DE PAGO (FALLBACK MÓVIL) --- */}
+        <Dialog open={isPaymentModalOpen} onOpenChange={setIsPaymentModalOpen}>
+          <DialogContent className="w-[90vw] md:max-w-md rounded-xl bg-background border-border">
+            <DialogHeader>
+              <DialogTitle className="text-xl font-black uppercase text-center">¡Casi Listo!</DialogTitle>
+              <DialogDescription className="text-center">
+                Tu reserva está guardada. Si no se abrió MercadoPago automáticamente, usa el botón de abajo.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="py-6 flex justify-center">
+              {paymentUrl && (
+                <Button 
+                  size="lg" 
+                  className="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold h-14 text-lg shadow-xl shadow-blue-500/20 animate-pulse"
+                  onClick={() => {
+                    // Clic manual: Esto NUNCA falla en móviles
+                    window.location.href = paymentUrl;
+                  }}
+                >
+                  PAGAR AHORA <ArrowRight className="ml-2 w-5 h-5" />
+                </Button>
+              )}
+            </div>
+            <DialogFooter>
+               <p className="text-xs text-center text-muted-foreground w-full">
+                 Tenés 5 minutos para completar el pago antes de que se libere el turno.
+               </p>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
 
       {!myBookings ? (
@@ -291,8 +339,6 @@ function DashboardContent() {
   );
 }
 
-// 2. Exportamos el componente principal envuelto en Suspense
-// Esto es lo que soluciona el error de build de Vercel
 export default function Dashboard() {
   return (
     <Suspense fallback={<div className="flex justify-center items-center h-screen"><Loader2 className="animate-spin w-10 h-10 text-green-600" /></div>}>

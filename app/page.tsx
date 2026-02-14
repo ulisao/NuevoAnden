@@ -1,13 +1,21 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { SignInButton, SignedIn, SignedOut, UserButton } from "@clerk/nextjs";
+// 1. IMPORTANTE: Agregamos useUser a los imports
+import { SignInButton, SignedIn, SignedOut, UserButton, useUser } from "@clerk/nextjs";
 import Link from "next/link";
-import { ArrowRight, CalendarDays, Trophy, ShieldCheck } from "lucide-react";
-// 1. Importamos el componente para cambiar de tema (asegurate de tenerlo en components)
+// 2. Agregamos el icono LayoutDashboard
+import { ArrowRight, CalendarDays, Trophy, ShieldCheck, LayoutDashboard } from "lucide-react";
 import { ModeToggle } from "@/components/mode-toggle"; 
 
+// 3. CONSTANTE DE ADMIN (El mismo email que usas para loguearte)
+const ADMIN_EMAIL = process.env.NEXT_PUBLIC_ADMIN_EMAIL; 
+
 export default function LandingPage() {
+  // 4. Obtenemos los datos del usuario actual
+  const { user } = useUser();
+  const isAdmin = user?.primaryEmailAddress?.emailAddress === ADMIN_EMAIL;
+
   return (
     <div className="flex flex-col min-h-screen bg-background transition-colors duration-300">
       {/* Navbar Minimalista */}
@@ -20,7 +28,6 @@ export default function LandingPage() {
         </div>
         
         <div className="flex items-center gap-2 md:gap-4">
-          {/* 2. Agregamos el botón de Modo Oscuro aquí */}
           <ModeToggle />
           
           <SignedOut>
@@ -35,7 +42,17 @@ export default function LandingPage() {
               </Button>
             </SignInButton>
           </SignedOut>
+          
           <SignedIn>
+            {/* 5. LÓGICA DEL BOTÓN ADMIN: Solo se muestra si sos vos */}
+            {isAdmin && (
+              <Link href="/admin">
+                <Button variant="ghost" size="sm" className="gap-2 text-muted-foreground hover:text-foreground hidden md:flex">
+                  <LayoutDashboard className="w-4 h-4" /> Admin
+                </Button>
+              </Link>
+            )}
+
             <Link href="/dashboard">
               <Button variant="outline" size="sm" className="gap-2">
                 Ir a Reservar <ArrowRight className="w-4 h-4" />
@@ -56,12 +73,21 @@ export default function LandingPage() {
             El sistema más rápido para reservar canchas de Fútbol 5 y 7. Sin llamadas, sin esperas. Elige tu horario y jugá.
           </p>
           
-          <div className="pt-4 flex justify-center">
-            <Link href="/dashboard" className="w-full md:w-auto px-4">
+          <div className="pt-4 flex justify-center gap-4 flex-col md:flex-row items-center">
+            <Link href="/dashboard" className="w-full md:w-auto px-4 md:px-0">
               <Button size="lg" className="w-full md:w-auto h-14 md:h-16 px-8 md:px-12 text-lg md:text-xl font-bold shadow-lg bg-green-600 hover:bg-green-700 text-white transition-all hover:scale-105 active:scale-95">
                 Reservar Ahora
               </Button>
             </Link>
+
+            {/* Opcional: También muestro el botón Admin grande en el medio si sos admin */}
+            {isAdmin && (
+              <Link href="/admin" className="w-full md:w-auto px-4 md:px-0 md:hidden">
+                 <Button variant="secondary" size="lg" className="w-full h-14 font-bold">
+                    <LayoutDashboard className="w-5 h-5 mr-2" /> Panel Admin
+                 </Button>
+              </Link>
+            )}
           </div>
         </div>
 

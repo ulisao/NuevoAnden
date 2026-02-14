@@ -1,7 +1,7 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 
-const ADMIN_EMAIL = "ulisessbaretta@gmail.com"; 
+const ADMIN_EMAIL = process.env.NEXT_PUBLIC_ADMIN_EMAIL;
 
 function isPast(dateStr: string, hour: number) {
   const now = new Date();
